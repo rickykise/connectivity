@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+  namespace="ai.fassto.connectivity.dataaccess.salesorder.repository.mybatis.PreCallWhenAllocatedMapper">
+
+    <select id="getPreCallInfo" resultType="ai.fassto.connectivity.dataaccess.salesorder.dto.TmsPreCallParcelDTO">
+        SELECT
+            oo.WH_CD as warehouseCode
+             , oo.CST_CD as customerCode
+             , c.CST_NM as customerName
+             , ifnull(oo.INVOICE_NO,'') as invoiceNo
+             , CASE
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'E' THEN '' -- 당일배송 정의되지않음.
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'F' THEN 'Teamfresh' -- 팀프레시
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'D' THEN 'Chain Logis' -- 원데이배송(체인로지스)
+                   WHEN oo.OUT_DIV = '1' and oo.ONE_DAY_DELIVERY_CD = 'CHAINLOGIS' THEN 'Chain Logis' -- 체인로지스
+                   WHEN oo.OUT_DIV = '2' and oo.ORD_DIV = 'G' THEN 'Corporate-Logistics' -- 기업택배
+                   WHEN oo.OUT_DIV = '4' and oo.ORD_DIV = 'N' THEN 'Ecremmoce' -- 해외배송(이크레모스)
+                   WHEN oo.OUT_DIV = '5' and oo.ORD_DIV = 'N' THEN '' -- 해외배송(Express) 연동안됨
+                   WHEN oo.OUT_DIV = '6' and oo.ORD_DIV = 'N' THEN '' -- Standard(일본) 연동안됨
+                   WHEN oo.OUT_DIV = '7' and oo.ORD_DIV = 'N' THEN 'Commerce-All' -- Standard(기타) (Commerce-Overseas)
+                   WHEN oo.OUT_DIV = '2' and oo.ORD_DIV = 'N' THEN 'YLP' -- 차량배송 (YLP-Normal)
+                   WHEN oo.OUT_DIV = '8' THEN 'Visit-pick' -- 직접수령
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'CJ' -- CJ 일반배송
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'P' THEN 'CJ' -- CJ 도착보장
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'CJ' -- CJ 특화납
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_WAY != '3' and oo.EMGR_YN = 'Y' THEN 'Hanjin' -- HANJIN 긴급
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'Hanjin' -- HANJIN 일반배송
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'P' THEN 'Hanjin' -- HANJIN 도착보장
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'Hanjin' -- HANJIN 특화납
+                   WHEN pa.parcel_cd = 'LOTTE' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'Lotte' -- LOTTE 일반배송
+                   WHEN pa.parcel_cd = 'LOTTE' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'Lotte' -- LOTTE 특화납
+                   else '-'
+            END AS deliveryCompanyCode
+             , CASE
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'E' THEN '' -- 당일배송 정의되지않음.
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'F' THEN 'Teamfresh-Morning' -- 팀프레시
+                   WHEN oo.OUT_DIV = '1' and oo.ORD_DIV = 'D' THEN 'Chainlogis-Today' -- 원데이배송(체인로지스)
+                   WHEN oo.OUT_DIV = '1' and oo.ONE_DAY_DELIVERY_CD = 'CHAINLOGIS' THEN 'Chainlogis-Today' -- 체인로지스
+                   WHEN oo.OUT_DIV = '2' and oo.ORD_DIV = 'G' THEN 'Corporate-Logistics' -- 기업택배
+                   WHEN oo.OUT_DIV = '4' and oo.ORD_DIV = 'N' THEN 'ECMS-Overseas' -- 해외배송(이크레모스)
+                   WHEN oo.OUT_DIV = '5' and oo.ORD_DIV = 'N' THEN '' -- 해외배송(Express) 연동안됨
+                   WHEN oo.OUT_DIV = '6' and oo.ORD_DIV = 'N' THEN '' -- Standard(일본) 연동안됨
+                   WHEN oo.OUT_DIV = '7' and oo.ORD_DIV = 'N' THEN 'Commerce-Overseas' -- Standard(기타) (Commerce-Overseas)
+                   WHEN oo.OUT_DIV = '2' and oo.ORD_DIV = 'N' THEN 'YLP-Normal' -- 차량배송 (YLP-Normal)
+                   WHEN oo.OUT_DIV = '8' THEN 'Visit-pick' -- 직접수령
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'CJ-Normal' -- CJ 일반배송
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'P' THEN 'CJ-Guarantee' -- CJ 도착보장
+                   WHEN pa.parcel_cd = 'CJ' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'CJ-Special' -- CJ 특화납
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_WAY != '3' and oo.EMGR_YN = 'Y' THEN 'Hanjin-Urgent' -- HANJIN 긴급
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'Hanjin-Normal' -- HANJIN 일반배송
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'P' THEN 'Hanjin-Guarantee' -- HANJIN 도착보장
+                   WHEN pa.parcel_cd = 'HANJIN' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'Hanjin-Special' -- HANJIN 특화납
+                   WHEN pa.parcel_cd = 'LOTTE' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'N' THEN 'Lotte-Normal' -- LOTTE 일반배송
+                   WHEN pa.parcel_cd = 'LOTTE' and oo.OUT_DIV = '1' and oo.ORD_DIV = 'C' THEN 'Lotte-Special' -- LOTTE 특화납
+                   else '-'
+            END AS deliveryType
+             , oo.ORD_NO as orderNo
+             , oo.SLIP_NO as slipNo
+             , ifnull(nullif(FN_COM_GET_DECRYPT(oos.SEND_NM),''),c.CST_NM) as senderName
+             , ifnull(nullif(ifnull(nullif(FN_COM_GET_DECRYPT(oos.SEND_TEL_NO),''),FN_COM_GET_DECRYPT(c.TEL_NO)),''),w.TEL_NO) as senderPhone
+             , pa.PICK_AREA_NO as senderZipCode
+             , pa.PICK_ADDRESS as senderAddress
+             , '' as senderAddressDetail
+             , FN_COM_GET_DECRYPT(oos.CUST_NM) as receiverName
+             , FN_COM_GET_DECRYPT(oos.CUST_TEL_NO) as receiverPhone
+             , FN_COM_GET_DECRYPT(oos.CUST_TEL_NO2) as receiverPhoneEtc
+             , oos.ZIP_NO as receiverZipCode
+             , FN_COM_GET_DECRYPT(oos.CUST_ADDR) as receiverAddress
+             , '' as receiverAddressDetail
+             , oos.SHIP_REQ_TERM as shipRequestMemo
+             ,oo.FRONT_DOOR_PWD as entrancePassword
+        FROM TB_OUT_ORD oo
+                 inner join tb_cst c on oo.CST_CD  = c.CST_CD
+                 inner join tb_wh w on oo.WH_CD  = w.WH_CD
+                 inner join tb_out_ord_sht oos on oo.WH_CD = oos.WH_CD and oo.CST_CD = oos.CST_CD and oo.ORD_NO = oos.ORD_NO and oo.ORD_SEQ = oos.ORD_SEQ
+                 inner join (SELECT
+                                 PARCEL_CD
+                                  , PARCEL_LINK_YN
+                                  , CUST_ID
+                                  , SUPER_CUST_ID
+                                  , IF(RTN_ADDR_USE_YN = 'Y', FN_COM_GET_DECRYPT(RTN_ZIP_CD), ZIP_CD) AS PICK_AREA_NO
+                                  , IF(RTN_ADDR_USE_YN = 'Y', CONCAT(FN_COM_GET_DECRYPT(RTN_ADDR1), ' ', FN_COM_GET_DECRYPT(RTN_ADDR2)), CONCAT(FN_COM_GET_DECRYPT(ADDR1), ' ', FN_COM_GET_DECRYPT(ADDR2))) AS PICK_ADDRESS
+                                  , CST_CD
+                             FROM (
+                                      /* 대역대 특정 고객사 별 */
+                                      SELECT
+                                          1 AS USE_SORT
+                                           , PI.PARCEL_CD
+                                           , 'Y' PARCEL_LINK_YN
+                                           , PI.CUST_ID
+                                           , null as SUPER_CUST_ID
+                                           , CST.RTN_ADDR_USE_YN
+                                           , CST.RTN_ZIP_CD
+                                           , CST.RTN_ADDR1
+                                           , CST.RTN_ADDR2
+                                           , WH.ZIP_CD
+                                           , WH.ADDR1
+                                           , WH.ADDR2
+                                           , CST.CST_CD
+                                      FROM TB_CST CST
+                                         , TB_CST_WH CW
+                                         , TB_PARCEL_INVOICE PI
+                                         , TB_WH WH
+                                      WHERE CST.CST_CD = #{cstCd} -- 고객사코드
+                                        AND CST.CST_CD = CW.CST_CD
+                                        and PI.TARGET_CST_CD = #{cstCd} -- 고객사코드
+                                        AND WH.WH_CD = CW.WH_CD
+                                        AND CW.WH_CD = #{whCd} -- 창고코드
+                                      UNION ALL
+                                      /* 센터의 고객사별 */
+                                      SELECT
+                                          2 AS USE_SORT
+                                           , WP.PARCEL_CD
+                                           , 'Y' PARCEL_LINK_YN
+                                           , PI.CUST_ID
+                                           , WP.SUPER_CUST_ID
+                                           , CST.RTN_ADDR_USE_YN
+                                           , CST.RTN_ZIP_CD
+                                           , CST.RTN_ADDR1
+                                           , CST.RTN_ADDR2
+                                           , WH.ZIP_CD
+                                           , WH.ADDR1
+                                           , WH.ADDR2
+                                           , CST.CST_CD
+                                      FROM TB_CST CST
+                                         , TB_CST_WH CW
+                                         , TB_WH_PARCEL WP
+                                         , TB_PARCEL_INVOICE PI
+                                         , TB_WH WH
+                                      WHERE CST.CST_CD = #{cstCd} -- 고객사코드
+                                        AND CST.CST_CD = CW.CST_CD
+                                        AND CW.WH_CD = WP.WH_CD
+                                        AND CW.PARCEL_CD = WP.PARCEL_CD
+                                        AND WP.PARCEL_CD = PI.PARCEL_CD
+                                        AND WP.CUST_ID = PI.CUST_ID
+                                        AND WH.WH_CD = CW.WH_CD
+                                        AND CW.WH_CD = #{whCd} -- 창고코드
+                                      UNION ALL
+                                      /* 센터 기본 택배사 */
+                                      SELECT
+                                          3 AS USE_SORT
+                                           , WP.PARCEL_CD
+                                           , 'Y' PARCEL_LINK_YN
+                                           , PI.CUST_ID
+                                           , WP.SUPER_CUST_ID
+                                           , CST.RTN_ADDR_USE_YN
+                                           , CST.RTN_ZIP_CD
+                                           , CST.RTN_ADDR1
+                                           , CST.RTN_ADDR2
+                                           , WH.ZIP_CD
+                                           , WH.ADDR1
+                                           , WH.ADDR2
+                                           , CST.CST_CD
+                                      FROM TB_CST CST
+                                         , TB_CST_WH CW
+                                         , TB_WH_PARCEL WP
+                                         , TB_PARCEL_INVOICE PI
+                                         , TB_WH WH
+                                      WHERE CST.CST_CD = #{cstCd} -- 고객사코드
+                                        AND CST.CST_CD = CW.CST_CD
+                                        AND CW.WH_CD = WP.WH_CD
+                                        AND WP.DEFAULT_YN = 'Y'
+                                        AND WP.PARCEL_CD = PI.PARCEL_CD
+                                        AND WP.CUST_ID = PI.CUST_ID
+                                        AND WH.WH_CD = CW.WH_CD
+                                        AND CW.WH_CD = #{whCd} -- 창고코드
+                                      ORDER BY USE_SORT
+                                          LIMIT 1
+                                  ) PARCEL_ADDR) as pa on oo.CST_CD = pa.CST_CD
+        WHERE oo.WH_CD = #{whCd} -- 창고코드
+          AND oo.CST_CD  = #{cstCd} -- 고객사코드
+          AND oo.SLIP_NO = #{slipNo} -- 출고요청번호
+        LIMIT 1
+        ;
+    </select>
+</mapper>

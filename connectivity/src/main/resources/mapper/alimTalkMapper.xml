@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.common.repository.mybatis.AlimTalkMapper">
+
+    <!--입고정보-->
+    <select id="findInboundInfo" resultType="ai.fassto.connectivity.dataaccess.common.dto.NotificationInfoDTO" >
+        /* 입고정보 확인 findInboundInfo */
+        SELECT CONCAT(SUBSTR(io.ord_dt,1,4),'-',SUBSTR(io.ord_dt,5,2),'-',SUBSTR(io.ord_dt,7,2)) AS ord_dt
+        , io.in_div
+        , io.slip_no
+        , icc.client_confirm_memo AS memo
+        FROM tb_in_ord io INNER JOIN tb_igi_client_confirm icc ON io.wh_cd = icc.wh_cd
+        AND io.cst_cd = icc.cst_cd
+        AND io.slip_no = icc.slip_no
+        AND io.god_cd = icc.god_cd
+        WHERE io.wh_cd = #{whCd}
+        AND io.cst_cd = #{cstCd}
+        AND io.slip_no = #{slipNo}
+        AND icc.processing_status IS NULL
+        AND io.god_cd IN
+        <foreach collection="godCdList" separator="," open="(" close=")" item="godCd">
+            #{godCd}
+        </foreach>
+    </select>
+
+    <!-- 반품정보 -->
+    <select id="findReturnInfo" resultType="ai.fassto.connectivity.dataaccess.common.dto.NotificationInfoDTO" >
+        /* 반품정보 확인 findInboundInfo */
+        /* 출고방법 택배 */
+        SELECT io.in_div
+        , op.out_ord_slip_no AS slip_no
+        , icc.client_confirm_memo AS memo
+        FROM tb_rtn_gath_sht rgs
+        INNER JOIN tb_out_pack op ON rgs.wh_cd = op.wh_cd
+        AND rgs.cst_cd = op.cst_cd
+        AND rgs.out_invoice_no = op.invoice_no
+        INNER JOIN tb_in_ord io ON rgs.wh_cd = io.wh_cd
+        AND rgs.cst_cd = io.cst_cd
+        AND rgs.in_ord_slip_no = io.slip_no
+        INNER JOIN tb_igi_client_confirm icc ON io.wh_cd = icc.wh_cd
+        AND io.cst_cd = icc.cst_cd
+        AND io.slip_no = icc.slip_no
+        AND io.god_cd = icc.god_cd
+        WHERE rgs.wh_cd = #{whCd}
+        AND rgs.cst_cd = #{cstCd}
+        AND rgs.in_ord_slip_no = #{slipNo}
+        AND icc.processing_status IS NULL
+        AND io.god_cd IN
+        <foreach collection="godCdList" separator="," open="(" close=")" item="godCd">
+            #{godCd}
+        </foreach>
+
+        UNION ALL
+        /* 출고방법 차량 */
+        SELECT io.in_div
+        , oo.slip_no AS slip_no
+        , icc.client_confirm_memo AS memo
+        FROM tb_in_ord io
+        INNER JOIN tb_igi_client_confirm icc ON io.wh_cd = icc.wh_cd
+        AND io.cst_cd = icc.cst_cd
+        AND io.slip_no = icc.slip_no
+        AND io.god_cd = icc.god_cd
+        INNER JOIN tb_out_ord oo ON io.wh_cd = oo.wh_cd
+        AND io.out_ord_slip_no  = oo.slip_no
+        AND io.god_cd = oo.god_cd
+        WHERE io.wh_cd = #{whCd}
+        AND io.cst_cd = #{cstCd}
+        AND io.slip_no = #{slipNo}
+        AND icc.processing_status IS NULL
+        AND io.god_cd IN
+        <foreach collection="godCdList" separator="," open="(" close=")" item="godCd">
+            #{godCd}
+        </foreach>
+        AND oo.wrk_stat = '3'	-- 작업상태(1:출고요청,2:출고작업중,3:출고완료,8:출고요청취소,9:재고부족결품)
+        AND oo.out_div = '2'	-- 출고구분(1:택배,2:차량/기타,3:해외,4:해외(이크레모스),5:Express(UPS),6:Standard(한진특송), 7:Standard(이커머스올))
+        AND oo.ord_div = 'N'	-- 배송유형구분(N: 일반주문, C: 쿠팡쉽먼트, D: 원데이배송(체인로지스), T: 당일입출고, E: 당일배송(로지스밸리), F: 새벽배송, G: 기업택배)
+        AND oo.out_tp = '1'		-- 출고유형(1:정상(출고),2:고객사재고이관,3:기타출고,4:반출,9:예외)
+    </select>
+
+    <!-- 고객 정보 조회 (휴대폰, 이메일) -->
+    <select id="findCstHpAndEmail" resultType="ai.fassto.connectivity.dataaccess.common.dto.CustomerInfoDTO">
+        /* 고객 정보 조회(휴대폰, 이메일) findCustomerHpEmail */
+        SELECT
+               REPLACE(T.CST_HP, '-', '') AS CST_HP
+             , LOWER(T.CST_EMAIL) AS CST_EMAIL
+        FROM (
+                 SELECT
+                     FN_COM_GET_DECRYPT(EMP_TEL_NO1) AS CST_HP
+                      , FN_COM_GET_DECRYPT(EMP_EMAIL1) AS CST_EMAIL
+                 FROM TB_CST
+                 WHERE CST_CD = #{cstCd}
+
+                 UNION ALL
+
+                 SELECT
+                     FN_COM_GET_DECRYPT(EMP_TEL_NO2) AS CST_HP
+                      , FN_COM_GET_DECRYPT(EMP_EMAIL2) AS CST_EMAIL
+                 FROM TB_CST
+                 WHERE CST_CD = #{cstCd}
+
+                 UNION ALL
+
+                 SELECT
+                     FN_COM_GET_DECRYPT(U.HP_NO) AS CST_HP
+                      , FN_COM_GET_DECRYPT(U.EMAIL) AS CST_EMAIL
+                 FROM TB_USER U
+                          INNER JOIN TB_AUTH A ON 1=1 AND U.USER_ID = A.USER_ID
+                 WHERE 1=1
+                   AND A.CST_CD = #{cstCd}
+                   AND A.AUTH_GRADE = 'MASTER'
+                   AND A.USE_YN = 'Y'
+
+                 UNION ALL
+
+                 SELECT
+                     FN_COM_GET_DECRYPT(U.HP_NO) AS CST_HP
+                      , FN_COM_GET_DECRYPT(U.EMAIL) AS CST_EMAIL
+                 FROM TB_USER U
+                          INNER JOIN TB_AUTH A ON 1=1 AND U.USER_ID = A.USER_ID
+                          INNER JOIN TB_FEE_SHEET_EMAIL FSE ON 1=1 AND FSE.CST_CD = A.CST_CD
+                 WHERE 1=1
+                   AND A.CST_CD = #{cstCd}
+                   AND A.AUTH_GRADE != 'MASTER'
+				AND A.USE_YN = 'Y'
+             ) T
+        GROUP BY
+            CST_HP , CST_EMAIL
+        ORDER BY
+            CST_HP DESC
+    </select>
+
+
+</mapper>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.common.repository.mybatis.TalkDreamMapper">
+
+    <!-- 톡드림 고객사명 조회 -->
+    <select id="findTalkDreamCompName" resultType="string">
+        /* 고객사명 조회 findTalkDreamCompName */
+        SELECT CST_NM AS COMP_NAME
+        FROM TB_TALKDRM_SETTING
+        WHERE CST_CD = #{cstCd}
+         AND USE_YN = 'Y'
+         AND SERVICE_TYPE = 'KAKAO'
+    </select>
+
+    <!-- 톡드림 발송 대상인지 템프리트에서 확인 -->
+    <select id="findTalkDreamTemplate" resultType="string">
+        /* 템플릿 조회 findTalkDreamTemplate */
+        SELECT TEMPLATE
+        FROM TB_TALKDRM_ALIMTALK_TMPL TMPL
+                 LEFT JOIN TB_TALKDRM_SETTING SETTING ON (TMPL.CST_CD = SETTING.CST_CD AND SETTING.SERVICE_TYPE = 'KAKAO')
+        WHERE TMPL.CST_CD = #{cstCd}
+          AND TMPL.ALIM_TALK_TYPE = #{alimTalkType}
+          AND TMPL.USE_YN = 'Y'
+          AND SETTING.USE_YN = 'Y'
+    </select>
+
+    <!-- 강제로 ALIMTALK 발송 등록, 여러 번 등록 가능하도록 할 때 -->
+    <insert id="insertAlimTalkMultiple">
+        /* 알림톡 정보 저장 insertAlimTalkMultiple */
+        INSERT INTO TB_TALKDRM_ALIMTALK_ORD
+            (
+              MSG_IDX		-- 메시지 일련번호 (메시지 고유값) 전송 시스템에서는 고유한지 확인하 지 않으므로 사용자측에서 고유한 값 으로 관리되어야 한다.
+            , ALIM_TALK_TYPE	-- 회원가입, 비밀번호변경, 배송, 입고, 출고 등 구분
+            , LINK_TABLE	-- 알림톡과 연관된 테이블
+            , LINK_KEY		-- link_table의 키값
+            , LINK_KEY_SEQ  -- 강제로 2번 이상 보내야 하는 경우 link_key_seq를 +1하여 등록
+            , CST_CD		-- 고객사 코드
+            , TEMPLATE		-- 템플리트 코드
+            , MOBILE		-- 수신자 번호 예)01012345678가 암호화된 것
+            , VALUE_JSON	-- 템플리트 변수값 JSON
+            , SEND_TIME		-- 발송일시
+            , REG_ID		-- 등록자 ID
+            , REG_TIME		-- 등록일시
+            , UPD_ID		-- 수정자 ID
+            , UPD_TIME		-- 수정일시
+            , COPIED_YN		-- TB_TALKDRM_ALIMTALK_DATA 로 복사 여부
+            ) VALUES
+            (
+              #{talkDreamSlipNo}		-- 메시지 일련번호 (메시지 고유값) 전송 시스템에서는 고유한지 확인하지 않으므로 사용자측에서 고유한 값으로 관리되어야 한다.
+            , #{alimTalkType}					-- 회원가입, 비밀번호변경, 배송, 입고, 출고 등 구분
+            , #{linkTable}								-- 알림톡과 연관된 테이블
+            , #{linkKey}								-- linkTable의 키값
+            , ( SELECT IFNULL(MAX(link_key_seq), 0) + 1 FROM TB_TALKDRM_ALIMTALK_ORD AS T WHERE ALIM_TALK_TYPE = #{alimTalkType} AND LINK_TABLE = #{linkTable} AND LINK_KEY = #{linkKey} )
+            , #{cstCd}									-- 고객사 코드
+            , #{template}									-- 템플리트 코드
+            , FN_COM_GET_ENCRYPT(REPLACE(#{mobile}, '-', ''))			-- 수신자 번호 예)01012345678가 암호화된 것
+            , #{valueJson}								-- 템플리트 변수값 Json
+            , #{sendTime}								-- 발송일시
+            , IFNULL(#{loginUserId},'CONNECTIVITY')		-- 등록자 Id
+            , NOW()										-- 등록일시
+            , IFNULL(#{loginUserId},'CONNECTIVITY')		-- 수정자 Id
+            , NOW()										-- 수정일시
+            , 'N'										-- TB_TALKDRM_ALIMTALK_DATA 로 복사 여부
+            )
+    </insert>
+
+</mapper>

@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/v1/item",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\"transactions\":[{\"MaterialMaster\":{\"PartNo\":\"01076HA00027\",\"Name\":\"곰탕\",\"Type\":\"Item\",\"Status\":\"ACTIVE\",\"MMProductClass\":{\"Code\":\"10012009\"},\"Precision\":0,\"GetUOIConfigByMaterialMaster\":{\"@attr\":{\"Action\":\"Override\",\"Parameter\":\"MaterialMaster\"},\"UOIConfig\":[{\"Name\":\"EA\",\"Status\":\"Active\",\"BaseUOIQuantity\":1,\"Width\":0,\"Depth\":0,\"Height\":0,\"DimensionUOM\":{\"Name\":\"cm\"},\"Weight\":0,\"WeightUOM\":{\"Name\":\"gr\"}}]}}},{\"MaterialMaster\":{\"PartNo\":\"01076HA00027\",\"MMCustomerRelAttributes\":{\"CustomerRelation\":{\"MaterialMaster\":{\"PartNo\":\"01076HA00027\"},\"Supplier\":{\"AccountNo\":\"FastoApplication\",\"SiteType\":{\"Name\":\"SolochainApplication\"}},\"Customer\":{\"AccountNo\":\"01076\",\"SiteType\":{\"Name\":\"Customer\"}}}},\"MMSiteAttributes\":{\"@attr\":{\"Action\":\"Override\",\"Index\":\"ByMaterialMasterAndSite\"},\"MaterialMaster\":{\"PartNo\":\"01076HA00027\"},\"Site\":{\"AccountNo\":\"FastoApplication\",\"Class\":\"SolochainApplication\"},\"ABCClass\":{\"Name\":\"A\",\"Site\":{\"AccountNo\":\"FasstoApplication\",\"Class\":\"SolochainApplication\"}},\"ExpiryDateTracking\":\"Disabled\",\"PutawayFromReceiving\":\"FALSE\",\"CustomerExpiryDateTolerance\":5,\"CustomerExpiryDateToleranceMode\":\"Strict\"}}}]}"
+      }
+    ]
+  },
+  "response": {
+    "status": 200
+  }
+}

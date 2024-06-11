@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "PUT",
+    "url": "/api/v1/vendor",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\"transactions\":[{\"Site\":{\"AccountNo\":\"04233001\",\"Name\":\"공급사명\",\"SiteType\":{\"Name\":\"Vendor\"},\"Language\":{\"Code\":\"ko\"},\"Status\":\"INACTIVE\",\"PrimaryAddress\":{\"Address1\":\"서울 강남구 삼성로 507 (삼성동, JS타워)\",\"Address2\":\"9층\",\"PostalCode\":\"06158\"},\"PhoneBus1\":\"010-1111-2222\"}}]}"
+      }
+    ]
+  },
+  "response": {
+    "status": 200
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/v1/customer",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\"transactions\":[{\"Site\":{\"AccountNo\":\"01123\",\"Name\":\"이재호\",\"SiteType\":{\"Name\":\"Customer\"},\"Language\":{\"Code\":\"ko\"},\"Status\":\"ACTIVE\",\"PrimaryAddress\":{\"Address1\":\"서울 강남구 삼성로 507 (삼성동, JS타워)\",\"Address2\":\"9층\",\"PostalCode\":\"06158\"},\"PhoneBus1\":\"010-1111-2222\",\"PrimaryContact\":{\"FirstName\":\"이재호\",\"LastName\":\"이재호\",\"Position\":\"팀장\",\"Site\":{\"AccountNo\":\"01123\",\"Class\":\"Site\",\"SiteType\":{\"Name\":\"Customer\"}},\"Status\":\"ACTIVE\"}}}]}"
+      }
+    ]
+  },
+  "response": {
+    "status": 200
+  }
+}

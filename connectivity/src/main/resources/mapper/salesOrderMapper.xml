@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+  namespace="ai.fassto.connectivity.dataaccess.salesorder.repository.mybatis.SalesOrderMapper">
+
+    <!-- 0. 공통 : 상태 변경 -->
+    <update id="updateOutOrdStatus" parameterType="ai.fassto.connectivity.dataaccess.salesorder.entity.OutOrdEntity">
+        /* 출고 작업 상태 변경 UpdateWrkStat */
+        UPDATE TB_OUT_ORD
+        SET WRK_STAT = #{wrkStat},
+            UPD_TIME = now(),
+            UPD_ID   = 'CONNECTIVITY'
+        WHERE 1 = 1
+          AND WH_CD = #{whCd}
+          AND SLIP_NO = #{slipNo}
+    </update>
+
+    <!-- 출고 요청 정보 1건 조회 -->
+    <select id="findOneOutOrd" resultType="ai.fassto.connectivity.dataaccess.salesorder.entity.OutOrdEntity">
+        /* 출고 주문 정보 1건 조회 findOneOutOrd */
+        SELECT ORD_DT         -- 지시일자
+             , WH_CD          -- 창고코드
+             , SLIP_NO        -- 전표번호
+             , CST_CD         -- 고객사코드
+             , SHOP_CD        -- 출고처코드
+             , GOD_CD         -- 상품코드
+             , DIST_TERM_DT   -- 유통기한
+             , ORD_QTY        -- 지시수량
+             , OUT_DIV        -- 출고구분
+             , PARCEL_CD      -- 택배사코드
+             , INVOICE_NO     -- 송장번호
+             , OUT_TP         -- 출고유형(1:정상(출고),2:고객사재고이관,3:기타출고,4:반출,9:예외)
+             , ORD_NO         -- 주문번호
+             , ORD_SEQ        -- 주문순번
+             , CST_DIV        -- 고객사구분
+             , CST_DTL_SEQ    -- 고객사상세일련번호
+             , CST_CLA_NO     -- 고객사클레임번호
+             , OUT_WAY        -- 출고방식(1:선입선출,2:후입선출,3:유통기한지정)
+             , WRK_STAT       -- 작업상태
+             , PICK_DIV       -- 피킹구분(O:ORDER)
+             , REG_ID         -- 등록자
+             , REG_TIME       -- 등록시간
+             , UPD_ID         -- 수정자
+             , UPD_TIME       -- 수정시간
+             , REG_UPD_ID     -- 등록수정자
+             , REG_UPD_TIME   -- 등록수정시간
+             , EMGR_YN        -- 긴급여부
+             , REMARK         -- 비고
+        FROM TB_OUT_ORD
+        WHERE WH_CD   = #{whCd}
+          AND SLIP_NO = #{slipNo}
+          AND CST_CD = #{cstCd}
+        LIMIT 1
+    </select>
+
+    <!-- 출고 피킹 지시 정보 1건 조회 -->
+    <select id="findOneOutPickOrd" resultType="ai.fassto.connectivity.dataaccess.salesorder.entity.OutPickOrdEntity">
+        SELECT WRK_STAT
+        FROM TB_OUT_PICK_ORD
+        WHERE WH_CD = #{whCd}
+         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+        LIMIT 1
+    </select>
+
+
+    <!-- 가할당 목록 조회 -->
+    <select id="findOutInventoryAssignList" resultType="ai.fassto.connectivity.dataaccess.salesorder.entity.OutInventoryAssignEntity">
+        SELECT OUT_ORD_SLIP_NO,
+               ITEM_SEQ,
+               WH_CD,
+               LOT_NO,
+               GOD_CD,
+               ASSIGN_QTY
+        FROM TB_OUT_INVENTORY_ASSIGN
+        WHERE OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+        ORDER BY ITEM_SEQ, GOD_CD, LOT_NO
+    </select>
+
+
+    <!-- 1. 출고지시확정 -->
+    <!-- 1.1 출고지시연계 생성 -->
+    <insert id="insertOutPickMap">
+        /* 출고지시연계 생성 insertOutPickMap */
+        INSERT INTO TB_OUT_PICK_MAP (
+                                      MAP_SLIP_NO
+                                    , OUT_ORD_SLIP_NO
+                                    , WH_CD
+                                    , CST_CD
+                                    , PICK_DT
+                                    , PICK_ORD_TYPE
+                                    , ALLOCATE_YN
+                                    , REG_ID
+                                    , REG_TIME
+                                    , UPD_ID
+                                    , UPD_TIME
+        ) VALUES (
+                   FN_SLIP_NO('OM', DATE_FORMAT(NOW(), '%Y%m%d'), #{whCd})
+                 , #{outOrdSlipNo}
+                 , #{whCd}
+                 , #{cstCd}
+                 , DATE_FORMAT(NOW(), '%Y%m%d')
+                 , 'O'
+                 , #{allocateYn}
+                 , 'CONNECTIVITY'
+                 , now()
+                 , 'CONNECTIVITY'
+                 , now()
+                 );
+    </insert>
+
+    <!-- 출고지시연계 수정 -->
+    <update id="updateOutPickMap">
+        /* 출고지시연계 수정 updateOutPickMap */
+        UPDATE TB_OUT_PICK_MAP
+        SET MAP_SLIP_NO = FN_SLIP_NO('OM', DATE_FORMAT(NOW(), '%Y%m%d'), #{whCd}),
+            PICK_DT = DATE_FORMAT(NOW(), '%Y%m%d'),
+            ALLOCATE_YN = #{allocateYn},
+            UPD_ID = 'CONNECTIVITY',
+            UPD_TIME = NOW()
+        WHERE WH_CD = #{whCd}
+         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+    </update>
+
+    <update id="updateBulkOutInventoryAssignLotNo">
+        /* 가할당 lotNo 수정 */
+        <foreach collection="outInventoryAssignEntityList" item="item" separator=";">
+            UPDATE TB_OUT_INVENTORY_ASSIGN
+            SET LOT_NO = #{item.lotNo},
+                UPD_ID = 'CONNECTIVITY',
+                UPD_TIME = NOW()
+            WHERE OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+              AND ITEM_SEQ = #{item.itemSeq}
+              AND WH_CD = #{whCd}
+              AND GOD_CD = #{item.godCd}
+              AND DEL_YN = 'N'
+        </foreach>
+    </update>
+
+    <delete id="deleteOutInventoryAssign">
+        /* 가할당 정보 삭제 deleteOutInventoryAssign */
+        DELETE FROM TB_OUT_INVENTORY_ASSIGN
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+    </delete>
+
+    <insert id="insertBulkOutInventoryAssign">
+        /* 가할당 정보 생성 insertBulkOutInventoryAssign */
+        INSERT INTO TB_OUT_INVENTORY_ASSIGN (
+          OUT_ORD_SLIP_NO
+        , ITEM_SEQ
+        , WH_CD
+        , LOT_NO
+        , GOD_CD
+        , ASSIGN_QTY
+        , REG_ID
+        , REG_TIME
+        , UPD_ID
+        , UPD_TIME
+        ) VALUES
+        <foreach collection="outInventoryAssignEntityList" item="item" separator=",">
+            ( #{outOrdSlipNo}
+            , #{item.itemSeq}
+            , #{whCd}
+            , #{item.lotNo}
+            , #{item.godCd}
+            , #{item.assignQty}
+            , 'CONNECTIVITY'
+            , now()
+            , 'CONNECTIVITY'
+            , now()
+            )
+        </foreach>
+    </insert>
+
+
+    <!-- 출고지시연계 존재여부 확인 -->
+    <select id="isExistOutPickMap" resultType="boolean">
+        /* 출고지시연계 존재여부 확인 */
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT_PICK_MAP
+                       WHERE WH_CD = #{whCd}
+                         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+                   ) AS isExist
+    </select>
+
+  <!-- 1-3. SP_OUT_ORD_SET -->
+  <!-- (1) 출고지시확정 데이터 생성 -->
+  <insert id="insertBulkOutOrdSet">
+    /* 출고지시확정 생성 insertBulkOutOrdSet */
+    INSERT INTO TB_OUT_ORD_SET (
+        ORD_DT
+      , WH_CD
+      , SLIP_NO
+      , CST_CD
+      , SHOP_CD
+      , GOD_CD
+      , DIST_TERM_DT
+      , ORD_QTY
+      , SET_QTY
+      , ORD_NO
+      , ORD_SEQ
+      , GOD_CANCEL_YN
+      , ORD_CANCEL_YN
+      , REG_ID
+      , REG_TIME
+      , UPD_ID
+      , UPD_TIME
+    ) values
+    <foreach collection="outOrdSetEntityList" item="item" separator=",">
+    (   #{ordDt}
+      , #{whCd}
+      , #{slipNo}
+      , #{cstCd}
+      , #{shopCd}
+      , #{item.godCd}
+      , #{item.distTermDt}
+      , #{item.setQty}
+      , #{item.setQty}
+      , #{ordNo}
+      , #{ordSeq}
+      , 'N'
+      , 'N'
+      , 'CONNECTIVITY'
+      , now()
+      , 'CONNECTIVITY'
+      , now()
+    )
+    </foreach>
+      ON DUPLICATE KEY
+      UPDATE SET_QTY = SET_QTY + VALUES(SET_QTY)
+      , ORD_QTY = ORD_QTY + VALUES(ORD_QTY)
+      , UPD_ID   = 'CONNECTIVITY'
+      , UPD_TIME = now()
+  </insert>
+
+    <!-- 피킹차수 조회 -->
+    <select id="getPickSeq" resultType="int">
+        /* 피킹차수 조회 */
+        SELECT IFNULL(MAX(PICK_SEQ) + 1, 1) AS PICK_DT
+        FROM TB_OUT_PICK_ORD
+        WHERE PICK_DT = #{pickDt}
+         AND WH_CD = #{whCd}
+    </select>
+
+  <!-- (2) 출고피킹오더 데이터 생성 -->
+  <insert id="insertBulkOutPickOrd" parameterType="ai.fassto.connectivity.dataaccess.salesorder.dto.OutPickOrdBulkInsertDTO">
+    /* 출고피킹오더 생성 insertBulkOutPickOrd */
+    INSERT INTO TB_OUT_PICK_ORD
+    (
+        PICK_DT
+      , WH_CD
+      , PICK_SEQ
+      , OUT_ORD_SLIP_NO
+      , CST_CD
+      , SHOP_CD
+      , LOC_NO
+      , LU_NO
+      , LOT_NO
+      , GOD_CD
+      , SET_QTY
+      , PICK_QTY
+      , ORD_NO
+      , ORD_SEQ
+      , WRK_STAT
+      , PICK_GEAR
+      , REG_GEAR
+      , REG_ID
+      , REG_TIME
+      , UPD_ID
+      , UPD_TIME
+    ) values
+    <foreach collection="outPickOrdEntityList" index="index" item="item" separator=",">
+    (
+      #{pickDt}
+    , #{whCd}
+    , #{pickSeq}
+    , #{outOrdSlipNo}
+    , #{cstCd}
+    , #{shopCd}
+    , #{item.locNo}
+    , #{item.luNo}
+    , #{item.lotNo}
+    , #{item.godCd}
+    , #{item.setQty}
+    , IF(#{hasLotNo}, NULL, #{item.pickQty})
+    , #{ordNo}
+    , #{ordSeq}
+    , #{wrkStat}
+    , ''
+    , ''
+    , 'CONNECTIVITY'
+    , now()
+    , 'CONNECTIVITY'
+    , now()
+    )
+    </foreach>
+      ON DUPLICATE KEY
+      UPDATE SET_QTY = SET_QTY + VALUES(SET_QTY)
+      , UPD_ID   = 'CONNECTIVITY'
+      , UPD_TIME = now()
+  </insert>
+
+    <!-- 피킹수량 수정 -->
+    <update id="updateBulkOutPickOrdPickQty">
+        /* 피킹수량 수정 */
+        <foreach collection="outPickOrdEntityList" item="item" separator=";">
+            UPDATE TB_OUT_PICK_ORD
+            SET PICK_QTY = #{item.pickQty},
+                PICK_ID = 'CONNECTIVITY',
+                PICK_TIME = #{item.pickTime},
+                UPD_ID = 'CONNECTIVITY',
+                UPD_TIME = NOW()
+            WHERE WH_CD            = #{whCd}
+            AND CST_CD             = #{cstCd}
+            AND OUT_ORD_SLIP_NO    = #{outOrdSlipNo}
+            AND LOT_NO             = #{item.lotNo}
+            AND GOD_CD             = #{item.godCd}
+        </foreach>
+    </update>
+
+
+    <!-- 검수 패킹 -->
+    <!-- 출고피킹 작업상태 수정  -->
+    <update id="updateOutPickOrdWorkStatus" >
+        /* 출고피킹 작업상태 수정 */
+        UPDATE TB_OUT_PICK_ORD
+        SET WRK_STAT  = #{wrkStat}
+          , UPD_ID    = 'CONNECTIVITY'
+          , UPD_TIME  = now()
+        WHERE WH_CD   = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+    </update>
+
+    <!-- 패킹 정보 등록 (bulk)-->
+    <insert id="insertBulkOutPack">
+            /* 출고패킹 정보 생성 insertBulkOutPack */
+            INSERT INTO TB_OUT_PACK (
+                      WH_CD
+                    , PACK_DT
+                    , PACK_SEQ
+                    , OUT_ORD_SLIP_NO
+                    , CST_CD
+                    , SHOP_CD
+                    , GOD_CD
+                    , PACK_QTY
+                    , ORD_NO
+                    , ORD_SEQ
+                    , BOX_DIV
+                    , BOX_NO
+                    , BOX_TP
+                    , BSC_FARE
+                    , AIR_FARE
+                    , DEAL_FARE
+                    , SHIP_FARE
+                    , PARCEL_CD
+                    , INVOICE_NO
+                    , WORK_TP
+                    , BOX_QUANTITY
+                    , DISPOSABLE_PALETTE
+                    , FSS_PALETTE
+                    , KPP_PALETTE
+                    , ONE_WOOD_PALETTE
+                    , GEAR_LOC_NUMB
+                    , PALLET_YN
+                    , REG_ID
+                    , REG_TIME
+                    , UPD_ID
+                    , UPD_TIME
+                    , add_sub_mate_yn
+                    , REAL_PACKING_VIDEO
+            ) VALUES
+        <foreach collection="outPackEntityList" item="item" separator=",">
+            (
+              #{whCd}
+            , IFNULL(NULLIF(#{packDt},''),DATE_FORMAT(NOW(), '%Y%m%d'))
+            , #{item.packSeq}
+            , #{outOrdSlipNo}
+            , #{cstCd}
+            , #{shopCd}
+            , #{item.godCd}
+            , IFNULL(NULLIF(#{item.packQty},0),0)
+            , #{ordNo}
+            , #{ordSeq}
+            , #{item.boxDiv}
+            , #{item.boxNo}
+            , #{item.boxTp}
+            , IFNULL(NULLIF(#{item.bscFare},0),0)
+            , IFNULL(NULLIF(#{item.airFare},0),0)
+            , IFNULL(NULLIF(#{item.dealFare},0),0)
+            , IFNULL(NULLIF(#{item.shipFare},0),0)
+            , #{item.parcelCd}
+            , #{item.invoiceNo}
+            , IFNULL(#{workTp},1)
+            , IFNULL(NULLIF(#{boxQuantity},0),0)
+            , IFNULL(NULLIF(#{disposablePalette},0),0)
+            , IFNULL(NULLIF(#{fssPalette},0),0)
+            , IFNULL(NULLIF(#{kppPalette},0),0)
+            , IFNULL(NULLIF(#{oneWoodPalette},0),0)
+            , #{gearLocNumb}
+            , 'N'       -- 팔레트 출고여부
+            , 'CONNECTIVITY'
+            , NOW()
+            , 'CONNECTIVITY'
+            , NOW()
+            , #{addSubMateYn}
+            , #{item.realPackingVideo}
+            )
+        </foreach>
+        ON DUPLICATE KEY
+        UPDATE PACK_QTY = PACK_QTY + VALUES(PACK_QTY)
+        , UPD_ID   = 'CONNECTIVITY'
+        , UPD_TIME = now()
+    </insert>
+
+    <!-- 출고패킹 정보 삭제 -->
+    <delete id="deleteOutPack">
+        DELETE FROM TB_OUT_PACK
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+          AND CST_CD = #{cstCd}
+    </delete>
+
+    <!-- 출고완료 invoice 정보 삭제 -->
+    <delete id="deleteOutInvoice">
+        DELETE FROM TB_OUT_INVOICE
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+          AND CST_CD = #{cstCd}
+    </delete>
+
+    <!-- 출고완료 정보 삭제 -->
+    <delete id="deleteOut">
+        DELETE FROM TB_OUT
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+          AND CST_CD = #{cstCd}
+    </delete>
+
+    <!-- 출고패킹 센터 부자재 정보 삭제 -->
+    <delete id="deleteOutPackWhSub">
+        DELETE FROM TB_OUT_PACK_WH_SUB
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+    </delete>
+
+    <!-- 출고완료 등록 (bulk)-->
+    <insert id="insertBulkOut" parameterType="ai.fassto.connectivity.dataaccess.salesorder.dto.OutBulkInsertDTO">
+        /* 출고완료 정보 생성 insertBulkOut */
+        INSERT INTO TB_OUT (
+                             OUT_DT
+                           , WH_CD
+                           , SLIP_NO
+                           , CST_CD
+                           , SHOP_CD
+                           , LOC_NO
+                           , LU_NO
+                           , LOT_NO
+                           , GOD_CD
+                           , OUT_QTY
+                           , OUT_DIV
+                           , OUT_ORD_SLIP_NO
+                           , ORD_NO
+                           , ORD_SEQ
+                           , OUT_TP
+                           , REG_ID
+                           , REG_TIME
+                           , UPD_ID
+                           , UPD_TIME
+              ) VALUES
+              <foreach collection="outEntityList" item="item" separator=",">
+              (
+                   IFNULL(NULLIF(#{outDt},''), DATE_FORMAT(NOW(), '%Y%m%d'))
+                 , #{whCd}
+                 , #{slipNo}
+                 , #{cstCd}
+                 , #{shopCd}
+                 , #{item.locNo}
+                 , #{item.luNo}
+                 , #{item.lotNo}
+                 , #{item.godCd}
+                 , IFNULL(#{item.outQty},0)
+                 , (SELECT MAX(OUT_DIV)
+                    FROM TB_OUT_ORD
+                    WHERE WH_CD = #{whCd}
+                      AND SLIP_NO = #{outOrdSlipNo})
+                 , #{outOrdSlipNo}
+                 , #{ordNo}
+                 , #{ordSeq}
+                 , #{outType}
+                 , 'CONNECTIVITY'
+                 , NOW()
+                 , 'CONNECTIVITY'
+                 , NOW()
+                 )
+              </foreach>
+                ON DUPLICATE KEY
+                UPDATE OUT_QTY = OUT_QTY + VALUES(OUT_QTY)
+                , UPD_ID   = 'CONNECTIVITY'
+                , UPD_TIME = now()
+    </insert>
+
+    <!-- 출고완료 상세 등록 (bulk)-->
+    <insert id="insertBulkOutInvoice" parameterType="ai.fassto.connectivity.dataaccess.salesorder.dto.OutInvoiceBulkInsertDTO">
+             /* 출고완료 정보 생성 insertBulkOutInvoice */
+            INSERT INTO TB_OUT_INVOICE (
+                OUT_DT
+                ,WH_CD
+                ,SLIP_NO
+                ,CST_CD
+                ,SHOP_CD
+                ,GOD_CD
+                ,GOD_DIV
+                ,INVOICE_NO
+                ,OUT_QTY
+                ,OUT_ORD_SLIP_NO
+                ,REG_ID
+                ,REG_TIME
+                ,UPD_ID
+                ,UPD_TIME
+            ) VALUES
+            <foreach collection="outInvoiceEntityList" item="item" separator=",">
+                (
+                IFNULL(NULLIF(#{outDt},''), DATE_FORMAT(NOW(), '%Y%m%d'))
+                , #{whCd}
+                , #{slipNo}
+                , #{cstCd}
+                , #{shopCd}
+                , #{item.godCd}
+                , #{item.godDiv}
+                , #{item.invoiceNo}
+                , IFNULL(#{item.outQty},0)
+                , #{outOrdSlipNo}
+                , 'CONNECTIVITY'
+                , NOW()
+                , 'CONNECTIVITY'
+                , NOW()
+                )
+            </foreach>
+            ON DUPLICATE KEY
+            UPDATE OUT_QTY = OUT_QTY + VALUES(OUT_QTY)
+            , UPD_ID   = 'CONNECTIVITY'
+            , UPD_TIME = now()
+    </insert>
+
+    <!-- 택배사 송장번호 수정 (outOrd)-->
+    <update id="updateOutOrdParcelCdInvoiceNo">
+        /* 택배사 송장번호 수정 */
+        UPDATE TB_OUT_ORD
+        SET   PARCEL_CD   = IFNULL(#{parcelCd}, PARCEL_CD)
+            , INVOICE_NO  = IFNULL(#{invoiceNo}, INVOICE_NO)
+            , UPD_ID      = 'CONNECTIVITY'
+            , UPD_TIME    = NOW()
+        WHERE WH_CD     = #{whCd}
+          AND SLIP_NO   = #{outOrdSlipNo}
+    </update>
+
+    <!-- 패킹수량 수정 -->
+    <update id="updateBulkOutPickOrdPackQty">
+        /* 패킹수량 수정 */
+        <foreach collection="outPickOrdEntityList" item="item" separator=";">
+            UPDATE TB_OUT_PICK_ORD
+            SET PACK_QTY = #{item.packQty},
+                PACK_ID = 'CONNECTIVITY',
+                PACK_TIME = #{item.packTime},
+                UPD_ID = 'CONNECTIVITY',
+                UPD_TIME = NOW()
+            WHERE WH_CD             = #{whCd}
+             AND CST_CD             = #{cstCd}
+             AND OUT_ORD_SLIP_NO    = #{outOrdSlipNo}
+             AND LOT_NO             = #{item.lotNo}
+             AND GOD_CD             = #{item.godCd}
+        </foreach>
+    </update>
+
+    <!-- 택배사 송장번호 수정 (outPack)-->
+    <update id="updateBulkOutPackParcelCdInvoiceNo">
+        /* 택배사 송장번호 수정 */
+        <foreach collection="outPackEntityList" item="item" separator=";">
+            UPDATE TB_OUT_PACK
+            SET PARCEL_CD   = #{item.parcelCd}
+            , INVOICE_NO  = #{item.invoiceNo}
+            , UPD_ID      = 'CONNECTIVITY'
+            , UPD_TIME    = NOW()
+            WHERE WH_CD             = #{whCd}
+            AND PACK_SEQ           = #{item.packSeq}
+            AND OUT_ORD_SLIP_NO    = #{outOrdSlipNo}
+            AND CST_CD             = #{cstCd}
+            AND GOD_CD             = #{item.godCd}
+        </foreach>
+    </update>
+
+    <!-- 출고지시확정 정보 존재여부 확인 -->
+    <select id="isExistOutOrdSet" resultType="boolean">
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT_ORD_SET
+                       WHERE WH_CD = #{whCd}
+                         AND SLIP_NO = #{slipNo}
+                   ) AS isExist
+    </select>
+
+    <!-- 출고피킹 정보 존재여부 확인 -->
+    <select id="isExistOutPickOrd" resultType="boolean">
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT_PICK_ORD
+                       WHERE WH_CD = #{whCd}
+                         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+                   ) AS isExist
+    </select>
+
+    <!-- 출고패킹 정보 존재여부 확인 -->
+    <select id="isExistOutPack" resultType="boolean">
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT_PACK
+                       WHERE WH_CD = #{whCd}
+                         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+                   ) AS isExist
+    </select>
+
+    <!-- 출고 Invoice 정보 존재여부 확인 -->
+    <select id="isExistOutInvoice" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM TB_OUT_INVOICE
+            WHERE WH_CD = #{whCd}
+              AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+        ) AS isExist
+    </select>
+
+    <!-- 출고완료 정보 존재여부 확인 -->
+    <select id="isExistOut" resultType="boolean">
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT
+                       WHERE WH_CD = #{whCd}
+                         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+                   ) AS isExist
+    </select>
+
+    <!-- 출고패킹 센터 부자재 정보 존재여부 확인 -->
+    <select id="isExistOutPackWhSub" resultType="boolean">
+        SELECT EXISTS (
+                       SELECT 1
+                       FROM TB_OUT_PACK_WH_SUB
+                       WHERE WH_CD = #{whCd}
+                         AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+                   ) AS isExist
+    </select>
+
+    <!-- 출고 지시 연계 상태 수정 -->
+    <update id="updateOutPickMapAllocateYn">
+        /* 출고 지시 연계 상태 수정 */
+        UPDATE TB_OUT_PICK_MAP
+        SET ALLOCATE_YN = #{allocateYn}
+          , UPD_ID      = 'CONNECTIVITY'
+          , UPD_TIME    = NOW()
+        WHERE WH_CD     = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+    </update>
+
+    <!-- 택배사 송장번호 null로 수정 (outOrd)-->
+    <update id="updateOutOrdParcelCdInvoiceNoToNull">
+        /* 택배사 송장번호 수정 */
+        UPDATE TB_OUT_ORD
+        SET PARCEL_CD   = null
+          , INVOICE_NO  = null
+          , UPD_ID      = 'CONNECTIVITY'
+          , UPD_TIME    = NOW()
+        WHERE WH_CD     = #{whCd}
+          AND SLIP_NO   = #{outOrdSlipNo}
+    </update>
+
+    <!-- 출고지시확정 정보 삭제 -->
+    <delete id="deleteOutOrdSet">
+        DELETE FROM TB_OUT_ORD_SET
+        WHERE WH_CD = #{whCd}
+          AND SLIP_NO = #{slipNo}
+          AND CST_CD = #{cstCd}
+    </delete>
+
+    <!-- 출고피킹지시 정보 삭제 -->
+    <delete id="deleteOutPickOrd">
+        DELETE FROM TB_OUT_PICK_ORD
+        WHERE WH_CD = #{whCd}
+          AND OUT_ORD_SLIP_NO = #{outOrdSlipNo}
+          AND CST_CD = #{cstCd}
+    </delete>
+
+    <!-- 배송유형구분 수정 -->
+    <update id="updateOutOrdOrdDiv">
+        /* 배송유형구분 수정 */
+        UPDATE TB_OUT_ORD
+        SET ORD_DIV = #{ordDiv}
+          , UPD_ID      = 'CONNECTIVITY'
+          , UPD_TIME    = NOW()
+        WHERE WH_CD     = #{whCd}
+          AND SLIP_NO   = #{slipNo}
+    </update>
+
+    <select id="findWhSubsidiaryList" resultType="ai.fassto.connectivity.dataaccess.salesorder.entity.WhSubsidiaryEntity">
+        SELECT WH_IDX,
+               SUB_NO,
+               SUB_DIV,
+               SUB_SIZE_CD,
+               SUB_USE_YN
+        FROM TB_WH_SUBSIDIARY
+        WHERE WH_CD = #{whCd}
+         AND SUB_NO IN
+        <foreach collection="whSubsidiaryEntityList" item="item" open="(" close=")" separator=",">
+            #{item.subNo}
+        </foreach>
+    </select>
+
+    <insert id="insertBulkOutPackWhSub">
+        INSERT INTO TB_OUT_PACK_WH_SUB(
+                                       PACK_DT,
+                                       WH_CD,
+                                       PACK_SEQ,
+                                       OUT_ORD_SLIP_NO,
+                                       CST_CD,
+                                       PACK_QTY,
+                                       WH_IDX,
+                                       REG_ID,
+                                       REG_TIME,
+                                       UPD_ID,
+                                       UPD_TIME
+                                       ) VALUES
+        <foreach collection="outPackWhSubEntityList" item="item" separator=",">
+            (
+              IFNULL(NULLIF(#{packDt},''), DATE_FORMAT(NOW(), '%Y%m%d'))
+            , #{whCd}
+            , #{packSeq}
+            , #{outOrdSlipNo}
+            , #{cstCd}
+            , #{item.packQty}
+            , #{item.whIdx}
+            , 'CONNECTIVITY'
+            , NOW()
+            , 'CONNECTIVITY'
+            , NOW()
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        PACK_QTY = VALUES(PACK_QTY),
+        UPD_ID = VALUES(UPD_ID),
+        UPD_TIME = VALUES(UPD_TIME)
+    </insert>
+
+    <!--outOrdSlip에 포함되어 있는 각 상품의 본품,딸린상품,이벤트사은품 수량 다건 조회-->
+    <select id="findSeperatedGodQtyList" resultType="ai.fassto.connectivity.dataaccess.salesorder.entity.OutOrdSeperatedGodQtyEntity">
+        /* outOrdSlip에 포함되어 있는 각 상품의 본품,딸린상품,이벤트사은품 수량 다건 조회 */
+        SELECT  GOD_CD, -- 상품코드
+                (ORD_QTY - ADD_GOD_ORD_QTY - PROMOTION_GOD_ORD_QTY) as MAIN_GOD_ORD_QTY, -- 본품 수량
+                ADD_GOD_ORD_QTY, -- 딸린 상품 수량
+                PROMOTION_GOD_ORD_QTY -- 이벤트 사은품 수량
+        FROM TB_OUT_ORD
+        WHERE WH_CD   = #{whCd}
+          AND SLIP_NO = #{slipNo}
+          AND CST_CD = #{cstCd}
+    </select>
+
+
+</mapper>

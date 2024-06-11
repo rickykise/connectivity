@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+    namespace="ai.fassto.connectivity.dataaccess.scheduler.repository.mybatis.SchedulerMapper">
+
+    <!-- scheduler 등록-->
+    <insert id="insertScheduler"  parameterType="ai.fassto.connectivity.dataaccess.scheduler.dto.SchedulerInsertDTO">
+        INSERT /* PID : schedulerMapper.insertScheduler */
+        INTO tb_connectivity_scheduler
+        (
+            SCHDL_TP,
+            SCHDL_STATUS,
+            TASK_ID,
+            META,
+            ALARM_EMAIL,
+            SCHDL_CREATED_DT,
+            RESERVED_AT
+        )
+        VALUES
+            (
+                #{type},
+                #{status},
+                #{taskId},
+                #{meta},
+                #{email},
+                NOW(),
+                IFNULL(#{reservedAt}, NOW())
+            )
+    </insert>
+
+    <!-- scheduler 조회 -->
+    <select id="getScheduler" resultType="ai.fassto.connectivity.dataaccess.scheduler.entity.SchedulerEntity">
+        SELECT  /* PID : schedulerMapper.getScheduler */
+            SCHDL_TP AS TYPE,
+            TASK_ID,
+            SCHDL_STATUS AS STATUS
+        FROM tb_connectivity_scheduler
+        WHERE TASK_ID = #{taskId}
+    </select>
+
+
+    <!-- scheduler 정보 조회 (단건)-->
+    <select id="getSchedulerInfo" resultType="ai.fassto.connectivity.dataaccess.scheduler.entity.SchedulerInfoEntity">
+        SELECT  /* PID : schedulerMapper.getSchedulerInfo */
+            SCHDL_TP AS TYPE,
+            TASK_ID,
+            SCHDL_CREATED_DT AS CREATED_AT,
+            COUNT(TASK_ID) AS TOTAL_COUNT,
+            COUNT(CASE WHEN SCHDL_STATUS='REGISTERED' THEN 1 END) AS REGISTERED_COUNT,
+            COUNT(CASE WHEN SCHDL_STATUS='IN_PROGRESS' THEN 1 END) AS IN_PROGRESS_COUNT
+        FROM tb_connectivity_scheduler
+        WHERE TASK_ID = #{taskId}
+        GROUP BY TASK_ID
+    </select>
+
+    <!-- scheduler 정보 리스트 조회-->
+    <select id="getSchedulerInfoList" resultType="ai.fassto.connectivity.dataaccess.scheduler.entity.SchedulerInfoEntity">
+        SELECT /* PID : schedulerMapper.getSchedulerList */
+            SCHDL_TP AS TYPE,
+            TASK_ID,
+            SCHDL_CREATED_DT AS CREATED_AT,
+            COUNT(TASK_ID) AS TOTAL_COUNT,
+            COUNT(CASE WHEN SCHDL_STATUS='REGISTERED' THEN 1 END) AS REGISTERED_COUNT,
+            COUNT(CASE WHEN SCHDL_STATUS='IN_PROGRESS' THEN 1 END) AS IN_PROGRESS_COUNT
+        FROM tb_connectivity_scheduler
+        WHERE SCHDL_TP = #{type}
+        GROUP BY TASK_ID
+        ORDER BY SCHDL_CREATED_DT DESC
+        LIMIT 1
+    </select>
+
+    <!-- 등록이거나 진행 중인 스케줄 카운트 -->
+    <select id="getSchedulerCount" resultType="ai.fassto.connectivity.domain.scheduler.core.valueobject.SchedulerCount">
+        SELECT  /* PID : schedulerMapper.getSchedulerCount */
+            COUNT(*) AS COUNT
+        FROM tb_connectivity_scheduler
+        WHERE SCHDL_TP = #{type}
+        AND SCHDL_STATUS = 'REGISTERED';
+    </select>
+
+    <select id="getCenterList" resultType="ai.fassto.connectivity.domain.scheduler.core.valueobject.Center">
+        SELECT SUB_CD AS WH_CD
+        FROM tb_com_dtl
+        WHERE MAIN_CD = 'SOLWH'
+        AND USE_YN = 'Y'
+    </select>
+
+    <!-- scheduler 식제-->
+    <update id="deleteScheduler" parameterType="ai.fassto.connectivity.dataaccess.scheduler.dto.SchedulerDeleteDTO">
+        UPDATE  /* PID : schedulerMapper.deleteScheduler */
+            tb_connectivity_scheduler
+        SET SCHDL_STATUS = #{status},
+            DESCRIPTION = #{description},
+            SCHDL_JOB_COMPLATED_DT = NOW()
+        WHERE TASK_ID = #{taskId}
+    </update>
+
+
+
+</mapper>

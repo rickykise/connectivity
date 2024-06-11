@@ -1,0 +1,96 @@
+server:
+  shutdown: "graceful"
+  port: ${env.server.port}
+  tomcat:
+    threads:
+      max: 1000
+
+spring:
+  datasource:
+    hikari:
+      jdbc-url: jdbc:${env.primary.db.name}://${env.primary.db.host}:${env.primary.db.port}/fsswms?allowPublicKeyRetrieval=true&useSSL=false&autoReconnect=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&allowMultiQueries=true
+      username: ${env.primary.db.username}
+      password: ${env.primary.db.password}
+      pool-name: ${env.primary.db.cp.name}
+      driver-class-name: ${env.primary.db.driver.class.name}
+      minimum-idle: ${env.primary.db.pool.size}
+      maximum-pool-size: ${env.primary.db.pool.size}
+      validation-timeout: 10000
+      connection-timeout: 30000
+      connection-test-query: 'select 1'
+      #auto-commit: false # it doesn't work
+      max-lifetime: 28790000 # 8hour - 10sec
+
+  main:
+    allow-bean-definition-overriding: true
+
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher # like /**/*.do
+
+
+  cloud:
+    loadbalancer:
+      ribbon:
+        enable: false
+
+feign:
+  httpclient:
+    max-connections: 500
+    max-connections-per-route: 500
+
+  client:
+    config:
+      default:
+        connectTimeout: 30000
+        readTimeout: 2400000 # 40 minutes
+        loggerLevel: FULL
+        decode404: false
+
+caffeine-cache:
+  connectivity-property-list: 'connectivityPropertyList'
+  connectivity-property: 'connectivityProperty'
+
+
+management:
+  server:
+    port: ${env.server.port}
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      enabled: true
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+wms:
+  api:
+    host: http://localhost:12000
+    customer: /soloconnect/rest/FMS/Inbound/CustomerRelation
+    vendor: /soloconnect/rest/FMS/Inbound/VendorRelation
+    item: /soloconnect/rest/FMS/Inbound/MaterialMaster
+    purchase-order: /soloconnect/rest/FMS/Inbound/PurchaseOrder
+    return-order: /soloconnect/rest/FMS/Inbound/ReturnOrder
+    sales-order: /soloconnect/rest/FMS/Inbound/SalesOrder
+    work-order: /soloconnect/rest/FMS/Inbound/WorkOrder
+    vehicle-confirmation: /soloconnect/rest/YLP/Inbound/VehicleConfirmation
+ylp:
+  api:
+    ylp-insert: /api/v1/ylp/connectivity/ylpInsert
+tms:
+  api:
+    pre-call: /carrier/parcel/pre-call
+    final-call: /carrier/parcel/final-call
+smartstore:
+  api:
+    register-invoice: /smartstore/api/invoice/newRegist
+partner-api:
+  api:
+    create-promotion: /api/v1/promotion

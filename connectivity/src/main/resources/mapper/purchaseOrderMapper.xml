@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+  namespace="ai.fassto.connectivity.dataaccess.purchaseorder.repository.mybatis.PurchaseOrderMapper">
+
+
+  <!-- 입고 작업 상태 변경 -->
+  <update id="updateWorkStatus">
+    /* 입고 작업 상태 변경 UpdateWrkStat */
+    UPDATE TB_IN_ORD
+    SET WRK_STAT = #{wrkStat},
+        UPD_TIME = now(),
+        UPD_ID   = 'CONNECTIVITY'
+    WHERE 1 = 1
+      AND WH_CD = #{whCd}
+      AND SLIP_NO = #{slipNo}
+  </update>
+
+  <!-- 1. 센터 도착 -->
+  <update id="cenArvTimeUpdate">
+    /* 센터도착 centerArrivalTimeUpdate */
+    UPDATE TB_IN_ORD
+    SET CEN_ARV_DT   = #{cenArvDt}
+      , CEN_ARV_TIME = #{cenArvTime}
+      , CEN_ARV_GBN  = #{cenArvGbn}    -- 센터 도착 구분 (1: 정상 도착, 2: 지연 도착, 3: 조기 도착, 0: 도착 안함)
+      , RELEASE_GBN  = #{releaseGbn}    -- 출고 가능 타입 (0: 당일 출고, 1: 익일 출고, 2: D+2 이상 출고)
+      , UPD_ID       = 'CONNECTIVITY'
+    WHERE WH_CD = #{whCd}
+      AND SLIP_NO = #{slipNo}
+  </update>
+
+  <!-- 2. 검수완료 -->
+  <!-- 2-3. 검수 작업 정보 SEQ -->
+  <select id="getInCheckSeq" parameterType="String" resultType="Integer">
+    SELECT IFNULL(MAX(IN_ORD_SEQ), 0) + 1 as SEQ
+      FROM TB_IN_CHECK
+      WHERE 1 = 1
+        AND WH_CD = #{whCd}
+        AND IN_ORD_SLIP_NO = #{inOrdSlipNo}
+        AND CST_CD = #{cstCd}
+  </select>
+
+  <!-- 2-3. 검수 작업 정보 저장 -->
+  <insert id="insertBulkInCheck">
+      /* 입고검수 작업 정보 생성 insertBulkInCheck */
+      INSERT INTO TB_IN_CHECK (
+        IN_DT -- 입고일자
+      , WH_CD -- 창고코드
+      , SLIP_NO -- 전표번호
+      , CST_CD -- 고객사코드
+      , SUP_CD -- 공급사코드
+      , LOC_NO -- 로케이션번호
+      , LU_NO -- LU번호
+      , LOT_NO -- LOT번호
+      , GOD_CD -- 상품코드
+      , IN_QTY -- 입고수량
+      , IN_QTY_SCAN_CNT -- 입고수량 SCAN COUNT
+      , IN_DIV -- 입고구분
+      , IN_PR -- 입고가
+      , IN_WAY -- 입고방식 INp11
+      , IN_ORD_SLIP_NO -- 입고지시전표번호
+      , IN_ORD_SEQ -- 입고지시순번
+      , IN_TP -- 입고 유형
+      , PLT_CNT -- 팔레트 수
+      , DROP_PLT_CNT -- 하차 파레트 수
+      , WEIGHT_5 -- 박스 5kg 이하
+      , WEIGHT_10 -- 박스 5kg 초과 ~ 10kg 이하
+      , WEIGHT_15 -- 박스 10kg 초과 ~ 15kg 이하
+      , WEIGHT_20 -- 박스 15kg 초과 ~20kg 이하
+      , WEIGHT_20_OVER -- 박스 20kg 초과
+      , SUB_BOX_CNT -- 부자재 박스 수
+      , MIX_IN_YN -- 혼적 여부
+      , MIX_IN_CNT -- 혼적 개수
+      , GOD_BARCD_ATT_CNT -- 바코드 부착 수
+      , IN_ARV_DT -- 입고 검수 일
+      , IN_ARV_TIME -- 입고 검수 시간
+      , IN_WRK_PER -- 작업 인원
+      , IN_WRK_TIME -- 작업 시간
+      , PAY_TIME -- 청구 시간
+      , IN_RTN_PAY -- 운임 비용
+      , REG_GEAR -- 등록장비
+      , REG_ID -- 등록자
+      , REG_TIME -- 등록시간
+      , UPD_ID -- 수정자
+      , UPD_TIME -- 수정시간
+      , ORD_SEQ -- 요청순번
+      )
+      VALUES
+      <foreach collection="inCheckEntityList" item="item" separator=",">
+        ( #{inDt}
+        , #{whCd}
+        , #{slipNo}
+        , #{cstCd}
+        , #{supCd}
+        , 'IN000'
+        , 'NONE'
+        , #{item.lotNo}
+        , #{item.godCd}
+        , #{item.inQty}
+        , 0 -- IN_QTY_SCAN_CNT
+        , #{inDiv}                -- 입고 구분 (1:입고, 2:반품)
+        , IFNULL(#{item.inPr}, 0) -- IN_PR(입고가)는 0으로 계산되어 들어감
+        , #{inWay}                -- 입고 방식 (01:택배, 02:차량)
+        , #{inOrdSlipNo}
+        , #{inOrdSeq}
+        , #{inTp}                 -- 입고 유형 (1:정상, 2:고객사재고이관, 9:예외)
+        , IFNULL(#{pltCnt}, 0)
+        , IFNULL(#{pltCnt}, 0) -- 하차 파레트 수
+        , IFNULL(#{weight5}, 0)
+        , IFNULL(#{weight10}, 0)
+        , IFNULL(#{weight15}, 0)
+        , IFNULL(#{weight20}, 0)
+        , IFNULL(#{weight20Over}, 0)
+        , IFNULL(#{subBoxCnt}, 0)
+        , IFNULL(#{mixInYn}, 'N')
+        , IFNULL(#{mixInCnt}, 0)
+        , IFNULL(#{item.godBarcdAttCnt}, 0)
+        , DATE_FORMAT(NOW(), '%Y%m%d')
+        , DATE_FORMAT(NOW(), '%H%i')
+        , IFNULL(#{inWrkPer},0)
+        , IFNULL(#{inWrkTime},0)
+        , IFNULL(#{payTime},0)
+        , IFNULL(#{inRtnPay}, 0)
+        , ''
+        , 'CONNECTIVITY'   -- 등록자
+        , NOW()            -- 등록시간
+        , 'CONNECTIVITY'   -- 수정자
+        , NOW()            -- 수정시간
+        , #{item.ordSeq}
+        )
+      </foreach>
+      ON DUPLICATE KEY UPDATE
+      IN_QTY = IN_QTY + VALUES(IN_QTY),
+      GOD_BARCD_ATT_CNT = GOD_BARCD_ATT_CNT + VALUES(GOD_BARCD_ATT_CNT),
+      UPD_ID = VALUES(UPD_ID),
+      UPD_TIME = VALUES(UPD_TIME)
+  </insert>
+
+
+  <!-- 3.2 입고완료 저장 -->
+  <insert id="insertBulkInWhenSales" parameterType="ai.fassto.connectivity.dataaccess.purchaseorder.dto.InBulkInsertDTO">
+    /* 입고완료 정보 생성 insertBulkIn */
+    INSERT INTO TB_IN(
+      IN_DT
+    , WH_CD
+    , SLIP_NO
+    , CST_CD
+    , SUP_CD
+    , LOC_NO
+    , LU_NO
+    , LOT_NO
+    , GOD_CD
+    , IN_QTY
+    , IN_DIV
+    , IN_PR
+    , IN_WAY
+    , CAR_KIND
+    , PLT_CNT
+    , IN_ORD_SLIP_NO
+    , IN_ORD_SEQ
+    , REG_GEAR
+    , REG_ID
+    , REG_TIME
+    , UPD_ID
+    , UPD_TIME
+    , ORD_SEQ
+    )
+    VALUES
+    <foreach collection="inEntityList" item="item" separator=",">
+      (
+        #{inDt}
+      , #{whCd}
+      , #{slipNo}
+      , #{cstCd}
+      , #{supCd}
+      , 'IN000' -- 로케이션번호(입고 대기 구역 IN000 고정)
+      , 'NONE'
+      , #{item.lotNo}
+      , #{item.godCd}
+      , IFNULL(#{item.inQty}, 0)
+      , IFNULL(#{inDiv}, '1')
+      , IFNULL(#{item.inPr}, 0)
+      , #{inWay}
+      , #{carKind}
+      , #{pltCnt}
+      , #{inOrdSlipNo}
+      , #{inOrdSeq}
+      , ''
+      , 'CONNECTIVITY'
+      , NOW()
+      , 'CONNECTIVITY'
+      , NOW()
+      , #{item.ordSeq}
+      )
+    </foreach>
+      ON DUPLICATE KEY UPDATE
+      IN_QTY = IN_QTY + VALUES(IN_QTY),
+      UPD_ID = VALUES(UPD_ID),
+      UPD_TIME = VALUES(UPD_TIME)
+  </insert>
+
+    <!-- 반품 입고완료 등록 -->
+    <insert id="insertBulkInWhenReturn" parameterType="ai.fassto.connectivity.dataaccess.purchaseorder.dto.InBulkInsertDTO">
+        /* 반품완료 정보 생성 insertBulkIn */
+        INSERT INTO TB_IN
+        (
+          IN_DT 				--  입고일자
+        , WH_CD 				--  창고코드
+        , SLIP_NO 		        --  전표번호
+        , CST_CD 				--  고객사코드
+        , SUP_CD 				--  공급사코드
+        , LOC_NO 				--  로케이션번호
+        , LU_NO 				--  LU번호
+        , LOT_NO 				--  LOT번호
+        , GOD_CD 				--  상품코드
+        , RTN_GOD_CHECK_STAT 	--  상품검수상태(반품)
+        , IN_QTY 				--  입고수량
+        , IN_DIV 				--  입고구분
+        -- , IN_PR 				--  입고가
+        , IN_WAY 				--  입고방식(INP12)
+        -- , CAR_KIND 			--  차종(INP04)
+        , PLT_CNT 			    --  팔레트수
+        , REC_LOC_NO 			--  추천로케이션번호
+        , IN_ORD_SLIP_NO 		--  입고지시전표번호
+        , REG_GEAR 			    --  등록장비
+        , REG_ID 				--  등록자
+        , REG_TIME 			    --  등록시간
+        , UPD_ID 				--  수정자
+        , UPD_TIME 			    --  수정시간
+        -- , REMARK 				--  비고
+        <if test='rtnBoxTp not in {null, ""}'>
+            , RTN_BOX_TP 			-- 반품 박스사이즈(tb_box.box_tp)
+        </if>
+        , CST_MEMO              -- 고객사 메모
+        , ORD_SEQ
+        )
+        VALUES
+        <foreach collection="inEntityList" item="item" separator=",">
+            (
+              #{inDt}                    -- 입고일자
+            , #{whCd} 				     -- 창고코드
+            , #{slipNo} 			     -- 전표번호
+            , #{cstCd} 				     -- 고객사코드
+            , #{supCd} 				     -- 공급사코드
+            , 'RT000'                    -- 로케이션번호(반품 대기 구역 RT000 고정)
+            , 'NONE' 		             -- LU번호(반품 NONE 고정)
+            , #{item.lotNo} 			 -- LOT번호
+            , #{item.godCd} 				-- 상품코드
+            , #{item.rtnGodCheckStat} 		 -- 상품검수상태(01:정상, 02:불량, 03:보류)
+            , IFNULL(#{item.inQty}, 0) 	     -- 입고수량
+            , #{inDiv}                   -- 입고 구분(1:입고, 2:반품)
+            -- , IFNULL(#inPr, 0) 	        -- 입고가
+            , #{inWay} 				        -- 입고방식(INP12)
+            -- , #carKind 			        -- 차종(INP04)
+            , IFNULL(#{pltCnt},0) 	        -- 팔레트수
+            , FN_REC_LOC_NO(#{whCd},#{item.godCd}) -- 추천로케이션번호
+            , #{inOrdSlipNo} 		        -- 지시전표번호
+            , '' 				            -- 등록장비
+            , 'CONNECTIVITY'     		    -- 등록자
+            , NOW() 				        -- 등록시간
+            , 'CONNECTIVITY' 		        -- 수정자
+            , NOW() 				        -- 수정시간
+            <if test='rtnBoxTp not in {null, ""}'>
+                , #{rtnBoxTp}			    -- 반품 박스사이즈(tb_box.box_tp)
+            </if>
+            , #{item.cstMemo}               -- 고객사 메모
+            , #{item.ordSeq}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        IN_QTY = IN_QTY + VALUES(IN_QTY),
+        RTN_GOD_CHECK_STAT = CASE WHEN RTN_GOD_CHECK_STAT != VALUES(RTN_GOD_CHECK_STAT) THEN '03' -- 보류
+                                  ELSE RTN_GOD_CHECK_STAT END,
+        UPD_ID = VALUES(UPD_ID),
+        UPD_TIME = VALUES(UPD_TIME),
+        CST_MEMO = VALUES(CST_MEMO)
+    </insert>
+
+  <!-- 3.2 입고 작업 정보 저장 -->
+  <insert id="insertInWrkInfoWhenSales">
+    /* 입고 작업 정보 생성 insertInWrkInfo */
+    INSERT INTO TB_IN_WRK_INFO( ORD_DT
+                              , WH_CD
+                              , SLIP_NO
+                              , SEQ
+                              , CST_CD
+                              , IN_ARV_DT
+                              , IN_ARV_TIME
+                              , IN_WRK_PER
+                              , IN_WRK_TIME
+                              , PAY_TIME
+                              , PLT_CNT
+                              , DROP_PLT_CNT
+                              , SUB_BOX_CNT
+                              , GOD_BARCD_ATT_CNT
+                              , WEIGHT_5
+                              , WEIGHT_10
+                              , WEIGHT_15
+                              , WEIGHT_20
+                              , WEIGHT_20_OVER
+                              , MIX_IN_YN
+                              , MIX_IN_CNT
+                              , IN_RTN_PAY
+                              , RATE_GBN
+                              , REG_ID
+                              , REG_TIME
+                              , UPD_ID
+                              , UPD_TIME)
+    VALUES(  (SELECT MAX(ORD_DT) FROM TB_IN_ORD WHERE WH_CD = #{whCd} AND SLIP_NO = #{slipNo})
+           , #{whCd}
+           , #{slipNo}
+           , #{seq}
+           , #{cstCd}
+           , DATE_FORMAT(NOW(), '%Y%m%d')
+           , DATE_FORMAT(NOW(), '%H%i')
+           , #{inWrkPer}
+           , #{inWrkTime}
+           , #{payTime}
+           , IFNULL(#{pltCnt}, 0)
+           , IFNULL(#{pltCnt}, 0) -- 하차 파레트 수
+           , IFNULL(#{subBoxCnt}, 0)
+           , IFNULL(#{godBarcdAttCnt}, 0)
+           , IFNULL(#{weight5}, 0)
+           , IFNULL(#{weight10}, 0)
+           , IFNULL(#{weight15}, 0)
+           , IFNULL(#{weight20}, 0)
+           , IFNULL(#{weight20Over}, 0)
+           , IFNULL(#{mixInYn}, 'N')
+           , IFNULL(#{mixInCnt}, 0)
+           , IFNULL(#{inRtnPay}, 0)
+           , IFNULL(NULLIF(#{rateGbn}, ''), '') -- 입고 할증률
+           , 'CONNECTIVITY' -- 등록자
+           , NOW()          -- 등록시간
+           , 'CONNECTIVITY' -- 수정자
+           , NOW()          -- 수정시간
+           )
+  </insert>
+
+    <!-- 반품 작업정보 등록 -->
+    <insert id="insertInWrkInfoWhenReturn">
+        /* 반품 작업 정보 생성 insertInWrkInfo */
+        INSERT INTO TB_IN_WRK_INFO
+        (
+            ORD_DT
+        , WH_CD
+        , SLIP_NO
+        , CST_CD
+        , IN_ARV_DT
+        , IN_ARV_TIME
+        , IN_WRK_PER
+        , IN_WRK_TIME
+        , IN_WRK_CD
+        , IN_RTN_PAY_CD
+        , IN_RTN_PAY
+        , PLT_CNT
+        , DROP_PLT_CNT
+        , SUB_BOX_CNT
+        , MIX_IN_YN
+        , WEIGHT_5
+        , WEIGHT_10
+        , WEIGHT_15
+        , WEIGHT_20
+        , WEIGHT_20_OVER
+        , MIX_IN_CNT
+        , REG_ID
+        , REG_TIME
+        , UPD_ID
+        , UPD_TIME
+        )
+        values
+            ( #{ordDt}
+            , #{whCd}
+            , #{slipNo}
+            , #{cstCd}
+            , date_format(now(), '%Y%m%d')
+            , '0000'   -- 고정
+            , #{inWrkPer}
+            , #{inWrkTime}
+            , #{inWrkCd}
+            , #{inRtnPayCd}
+            , CASE WHEN TRIM(#{inRtnPay}) = '' THEN NULL ELSE #{inRtnPay} END -- 운임비
+            , IFNULL(#{pltCnt}, 0)
+            , IFNULL(#{pltCnt}, 0) -- 하차 파레트 수
+            , IFNULL(#{subBoxCnt}, 0)
+            , IFNULL(#{mixInYn}, 'N')
+            , IFNULL(#{weight5}, 0)
+            , IFNULL(#{weight10}, 0)
+            , IFNULL(#{weight15}, 0)
+            , IFNULL(#{weight20}, 0)
+            , IFNULL(#{weight20Over}, 0)
+            , IFNULL(#{mixInCnt}, 0)
+            , 'CONNECTIVITY'
+            , now()
+            , 'CONNECTIVITY'
+            , now()
+            )
+    </insert>
+
+  <!-- 조회 -->
+  <!-- TB_IN_ORD 1건 조회 (입고일자, 센터도착유형, 출고유형) -->
+  <select id="findOneInOrd" resultType="ai.fassto.connectivity.dataaccess.purchaseorder.entity.InOrdEntity">
+      /* 입고 주문 정보 1건 조회 findOneInOrder */
+      SELECT ORD_DT,
+             SUP_CD,
+             IN_WAY,
+             CEN_ARV_DT,
+             CEN_ARV_TIME,
+             CEN_ARV_GBN,
+             RELEASE_GBN,
+             RELEASE_DT
+      FROM TB_IN_ORD
+      WHERE 1 = 1
+        AND WH_CD = #{whCd}
+        AND SLIP_NO = #{slipNo}
+      LIMIT 1
+  </select>
+
+    <!-- Damaged 상품 고객확인 생성 -->
+    <insert id="insertBulkDamagedItemClientConfirm">
+        /* Damaged 상품 고객확인 정보 생성 insertBulkDamagedItemClientConfirm */
+        INSERT INTO TB_IGI_CLIENT_CONFIRM(
+            RECEIPT_NO,                          -- 영수증번호
+            WH_CD,
+            SLIP_NO,
+            CST_CD,
+            GOD_CD,
+            CLIENT_CONFIRM_MEMO,                -- 고객확인내용
+            CLIENT_CONFIRM_IMG_PATH,            -- 고객확인이미지경로
+            REG_ID,
+            REG_TIME,
+            UPD_ID,
+            UPD_TIME
+        )
+        VALUES
+        <foreach collection="clientConfirmEntityList" item="item" separator=",">
+            (
+             #{item.receiptNo},
+             #{whCd},
+             #{slipNo},
+             #{cstCd},
+             #{item.godCd},
+             #{item.clientConfirmMemo},
+             #{item.clientConfirmImgPath},
+             'CONNECTIVITY',
+             NOW(),
+             'CONNECTIVITY',
+             NOW()
+            )
+        </foreach>
+    </insert>
+
+    <!-- 고객확인여부 Y로 변경 -->
+    <update id="updateBulkClientConfirmYn">
+        /* 고객확인여부 Y로 변경 updateBulkClientConfirmYn */
+        <foreach collection="inOrdEntityList" item="item" separator=";">
+         UPDATE TB_IN_ORD
+         SET CLIENT_CONFIRM_YN = 1
+         WHERE WH_CD = #{whCd}
+          AND SLIP_NO = #{slipNo}
+          AND GOD_CD = #{item.godCd}
+        </foreach>
+    </update>
+
+    <!--Damaged 상품목록 조회 -->
+    <select id="findDamagedItemListBySlipNo" resultType="ai.fassto.connectivity.dataaccess.purchaseorder.entity.ClientConfirmEntity">
+        /* 기존 Damaged 상품목록 조회 findDamagedItemListBySlipNo */
+        SELECT RECEIPT_NO
+             , WH_CD
+             , SLIP_NO
+             , CST_CD
+             , GOD_CD
+        FROM TB_IGI_CLIENT_CONFIRM
+        WHERE SLIP_NO = #{slipNo}
+    </select>
+
+</mapper>

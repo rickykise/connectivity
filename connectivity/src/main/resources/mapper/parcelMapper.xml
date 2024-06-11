@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.parcel.repository.mybatis.ParcelMapper">
+    <!-- 택배사 송장번호 수정 (outOrd)-->
+    <update id="updateOutOrdParcelCdInvoiceNo">
+        /* 택배사 송장번호 수정 */
+        UPDATE TB_OUT_ORD
+        SET PARCEL_CD   = #{parcelCd}
+          , INVOICE_NO  = #{invoiceNo}
+          , UPD_ID      = 'CONNECTIVITY'
+          , UPD_TIME    = NOW()
+        WHERE WH_CD     = #{whCd}
+          AND SLIP_NO   = #{slipNo}
+    </update>
+
+    <!-- 출고 요청 정보 1건 조회 -->
+    <select id="findOneOutOrd" resultType="ai.fassto.connectivity.dataaccess.parcel.entity.OutOrdEntity">
+        /* 출고 주문 정보 1건 조회 findOneOutOrd */
+        SELECT ORD_DT         -- 지시일자
+             , WH_CD          -- 창고코드
+             , SLIP_NO        -- 전표번호
+             , CST_CD         -- 고객사코드
+             , SHOP_CD        -- 출고처코드
+             , GOD_CD         -- 상품코드
+             , DIST_TERM_DT   -- 유통기한
+             , ORD_QTY        -- 지시수량
+             , OUT_DIV        -- 출고구분
+             , OUT_TP         -- 출고유형(1:정상(출고),2:고객사재고이관,3:기타출고,4:반출,9:예외)
+             , ORD_NO         -- 주문번호
+             , ORD_SEQ        -- 주문순번
+             , CST_DIV        -- 고객사구분
+             , CST_DTL_SEQ    -- 고객사상세일련번호
+             , CST_CLA_NO     -- 고객사클레임번호
+             , OUT_WAY        -- 출고방식(1:선입선출,2:후입선출,3:유통기한지정)
+             , WRK_STAT       -- 작업상태
+             , PICK_DIV       -- 피킹구분(O:ORDER)
+             , REG_ID         -- 등록자
+             , REG_TIME       -- 등록시간
+             , UPD_ID         -- 수정자
+             , UPD_TIME       -- 수정시간
+             , REG_UPD_ID     -- 등록수정자
+             , REG_UPD_TIME   -- 등록수정시간
+             , EMGR_YN        -- 긴급여부
+             , REMARK         -- 비고
+        FROM TB_OUT_ORD
+        WHERE WH_CD   = #{whCd}
+          AND SLIP_NO = #{slipNo}
+          AND CST_CD = #{cstCd}
+          LIMIT 1
+    </select>
+
+</mapper>

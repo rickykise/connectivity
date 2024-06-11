@@ -1,0 +1,14 @@
+aws:
+  secretsmanager:
+    prefix: /env/fms1.5
+    name: connectivity
+    profileSeparator: _
+    failFast: true
+    enabled: true
+
+cloud:
+  aws:
+    region:
+      static: ap-northeast-2
+    credentials:
+      instanceProfile: true

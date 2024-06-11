@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.item.repository.mybatis.ItemMapper">
+    <select id="findBy" parameterType="string" resultType="ai.fassto.connectivity.dataaccess.item.valueobject.GoodsVolume">
+        SELECT GOD_CD as godCd,
+               GOD_WIDTH as godWidth,
+               GOD_LENGTH as godLength,
+               GOD_HEIGHT as godHeight,
+               GOD_WEIGHT as godWeight
+        FROM TB_GOD
+        WHERE GOD_CD = #{godCd}
+    </select>
+
+    <update id="updateItemVolume">
+        /* 상품 체적 수정 ItemVolumeUpdate */
+        UPDATE TB_GOD
+        SET GOD_WIDTH = #{godWidth},
+            GOD_LENGTH = #{godLength},
+            GOD_HEIGHT = #{godHeight},
+            GOD_WEIGHT = #{godWeight},
+            GOD_BULK = #{godBulk},
+            GOD_SIDE_SUM = #{godSideSum}
+        WHERE GOD_CD = #{godCd}
+    </update>
+
+    <insert id="insertGodChangeHistory" parameterType="map">
+        <selectKey resultType="int" keyProperty="regNo" order="BEFORE">
+            SELECT IFNULL(MAX(REG_NO), 0) + 1 AS REG_NO FROM TB_GOD_CHNG_HIST
+        </selectKey>
+        /* 상품변경정보 히스토리 저장 */
+        INSERT INTO TB_GOD_CHNG_HIST (
+          REG_NO             --  등록순번
+        , GOD_CD           --  상품코드
+        , CST_CD           --  고객사코드
+        , CLMN_NM          --  변경 컬럼명
+        , CLMN_BFR_VAL     --  변경 전 값
+        , CLMN_AFT_VAL     --  변경 후 값
+        , REG_ID           --  등록자
+        , REG_TIME         --  등록시간
+        ) VALUES (
+        #{regNo}           --  등록순번
+        , #{orgGodCd}      --  상품코드
+        , #{cstCd}         --  고객사코드
+        , #{clmnNm}        --  변경 컬럼명
+        , #{clmnBfrVal}    --  변경 전 값
+        , #{clmnAftVal}    --  변경 후 값
+        , #{loginUserId}   --  등록자
+        , NOW()            --  등록시간
+        )
+    </insert>
+
+</mapper>

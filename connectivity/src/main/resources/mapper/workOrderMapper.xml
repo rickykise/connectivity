@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.workorder.repository.mybatis.WorkOrderMapper">
+
+    <!-- 작업상태 변경 -->
+    <update id="updateWorkStatus">
+        /* 유통가공 작업 상태 변경 UpdateWrkStat */
+        UPDATE TB_WORK_ORDER_REQ_MST
+        SET WRK_STAT = #{wrkStat},  -- (1:신청중, 2:작업중, 3:완료, 9:취소)
+            UPD_ID = #{updId},
+            UPD_TIME = NOW()
+        WHERE SLIP_NO = #{slipNo}
+    </update>
+
+    <!-- 완료 수량, 취소 수량 설정-->
+    <update id="updateBulkQty">
+        /* 완료 수량, 취소 수량 설정 updateBulkQty */
+        <foreach collection="workOrderResponseEntityList" item="item" separator=";">
+            UPDATE TB_WORK_ORDER_RESP
+            SET WORK_YMD = #{workDate},
+                COMPLETED_QTY = #{item.completedQty},
+                CANCELLED_QTY = #{item.cancelledQty},
+                WORKER_TIME = IFNULL(#{workerTime},0),
+                WORKER_CNT = IFNULL(#{workerCnt},0),
+                UPD_ID = #{updId},
+                UPD_TIME = NOW()
+            WHERE SLIP_NO = #{slipNo}
+            AND ITEM_SEQ = #{item.itemSeq}
+        </foreach>
+    </update>
+
+    <!-- 작업상태 변경후 이력 저장 -->
+    <insert id="insertWorkStatusHistory">
+        /* 유통가공 작업 상태 이력 저장 insertWorkStatusHistory */
+        INSERT INTO TB_WORK_ORDER_WRK_STAT_HISTORY
+            (
+             SLIP_NO,
+             WRK_STAT,
+             WRK_STAT_REMARK,
+             REG_ID,
+             REG_TIME
+            )
+            VALUES
+            (
+             #{slipNo},
+             #{wrkStat},
+             #{wrkStatRemark},
+             #{regId},
+             NOW()
+            )
+    </insert>
+
+    <!-- 작업요청 결과 목록 조회 -->
+    <select id="findWorkOrderResponseList" resultType="ai.fassto.connectivity.dataaccess.workorder.entity.WorkOrderResponseEntity">
+        /* 작업요청 결과 목록 조회 findWorkOrderResponseList */
+        SELECT SLIP_NO,
+               ITEM_SEQ
+        FROM TB_WORK_ORDER_RESP
+        WHERE SLIP_NO = #{slipNo}
+    </select>
+
+    <select id="existsWorkOrderRequest" resultType="boolean">
+        /* 유통가공 신청 여부 existsWorkOrderRequest */
+        SELECT EXISTS
+            (SELECT 1
+             FROM TB_WORK_ORDER_REQ_MST
+             WHERE SLIP_NO = #{slipNo})
+        AS FLAG
+    </select>
+
+</mapper>

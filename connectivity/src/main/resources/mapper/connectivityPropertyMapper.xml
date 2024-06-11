@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.common.repository.mybatis.ConnectivityPropertyMapper">
+
+    <select id="findOrNullByMainTypeAndSubTypeAndActive" resultType="ai.fassto.connectivity.dataaccess.common.dto.ConnectivityPropertyDTO">
+        SELECT PROP_MAIN_TYPE AS mainType,
+               PROP_SUB_TYPE  AS subType,
+               PROP_VAL       AS `value`
+        FROM tb_connectivity_property
+        WHERE PROP_MAIN_TYPE = #{mainType}
+          and PROP_SUB_TYPE = #{subType}
+          and PROP_ACTIVE = #{active}
+    </select>
+
+    <select id="findByMainTypeAndActive" resultType="ai.fassto.connectivity.dataaccess.common.dto.ConnectivityPropertyDTO">
+        SELECT PROP_MAIN_TYPE AS mainType,
+               PROP_SUB_TYPE  AS subType,
+               PROP_VAL       AS `value`
+        FROM tb_connectivity_property
+        WHERE PROP_MAIN_TYPE = #{mainType}
+          and PROP_ACTIVE = #{active}
+    </select>
+</mapper>

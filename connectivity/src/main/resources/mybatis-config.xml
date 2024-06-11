@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <setting name="autoMappingBehavior" value="FULL"/>
+    </settings>
+
+    <typeAliases>
+        <package name="ai.fassto.connectivity.dataaccess.item.entity.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.purchaseorder.entity.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.salesorder.entity.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.stock.entity.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.workorder.entity.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.common.dto.*"/>
+        <package name="ai.fassto.connectivity.dataaccess.scheduler.entity.*"/>
+    </typeAliases>
+
+    <typeHandlers>
+        <typeHandler javaType="java.util.Date" jdbcType="DATE" handler="org.apache.ibatis.type.DateTypeHandler"/>
+        <typeHandler javaType="java.sql.Time" handler="org.apache.ibatis.type.DateTypeHandler"/>
+        <typeHandler javaType="java.sql.Timestamp" handler="org.apache.ibatis.type.DateTypeHandler"/>
+    </typeHandlers>
+</configuration>

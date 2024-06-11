@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.fassto.connectivity.dataaccess.stock.repository.mybatis.StockMapper">
+    <insert id="insertWarehouseInventoryOnDuplicateKeyUpdate" parameterType="java.util.List">
+        INSERT INTO tb_wh_inventory (
+        WH_CD , -- comment '창고코드'
+        LU_NO , -- comment 'LU번호'
+        LOT_NO , -- comment 'LOT번호'
+        GOD_CD , -- comment '상품코드'
+        CONDITION_CD , -- comment '재고상태'
+        MAKE_DT , -- comment '제조일자'
+        DIST_TERM_DT , -- comment '유통기한일자'
+        STOCK_QTY , -- comment '재고수량'
+        REG_ID , -- comment '등록자'
+        REG_TIME , -- comment '등록시간'
+        UPD_ID , -- comment '수정자'
+        UPD_TIME -- comment '수정시간'
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.whCd},
+            #{item.luNo},
+            #{item.lotNo},
+            #{item.godCd},
+            #{item.conditionCd},
+            #{item.makeDt},
+            #{item.distTermDt},
+            #{item.stockQty},
+            #{item.regId},
+            #{item.regTime},
+            #{item.updId},
+            #{item.updTime}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        STOCK_QTY = STOCK_QTY + VALUES(STOCK_QTY),
+        MAKE_DT = VALUES(MAKE_DT),
+        DIST_TERM_DT = VALUES(DIST_TERM_DT),
+        UPD_ID = VALUES(UPD_ID),
+        UPD_TIME = VALUES(UPD_TIME)
+    </insert>
+
+    <insert id="insertWarehouseInventoryHistory" parameterType="java.util.List">
+        INSERT INTO tb_wh_inventory_history (
+        WH_CD , -- '창고코드'
+        LU_NO , -- 'LU번호'
+        LOT_NO , -- 'LOT번호'
+        GOD_CD , -- '상품코드'
+        CONDITION_CD , -- '재고상태'
+        DIST_TERM_DT , -- '유통기한'
+        MAKE_DT , -- '제조일자'
+        STOCK_QTY , -- '재고수량'
+        ADJUSTMENT_REASON_CODE , -- '재고변경사유코드'
+        TYPE , -- '타입'
+        REG_TIME -- '등록시간
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.whCd},
+            #{item.luNo},
+            #{item.lotNo},
+            #{item.godCd},
+            #{item.conditionCd},
+            #{item.distTermDt},
+            #{item.makeDt},
+            #{item.stockQty},
+            #{item.adjustmentReasonCode},
+            #{item.type},
+            #{item.regTime}
+            )
+        </foreach>
+    </insert>
+
+</mapper>
