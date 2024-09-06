@@ -1,18 +1,5 @@
 # fassto_connectivity
 
-## Environment Variable Setup (Just For Local)
-* activeProfile: loc
-* AWS CLI 설치: https://docs.aws.amazon.com/ko_kr/cli/latest/userguide/getting-started-install.html
-* 인증정보 설정:
-```shell
-$ aws configure
-AWS Access Key ID [None]: (장승호에게 요청)
-AWS Secret Access Key [None]: (장승호에게 요청)
-Default region name [None]: ap-northeast-2
-```
-
----
-
 ## Project 구조
 ![Project 구조](image/connectivity-v1-architecture.png)
 
